@@ -168,10 +168,8 @@ class dataiterator(object):
         return self.next()
 
     def next(self):
-
         if self.end_of_data:
             raise StopIteration
-
         ss = self.start_position
         ee = self.start_position + self.batch_size
         self.start_position += self.batch_size
