@@ -1,7 +1,6 @@
 #preprocess codenet data
 
 import csv
-from tensorflow import python
 import torch
 import dgl
 import dgl.function as fn
