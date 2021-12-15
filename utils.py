@@ -11,8 +11,7 @@ import torchtext
 from torchtext.data.utils import get_tokenizer
 from collections import Counter, defaultdict
 from torchtext.vocab import Vocab, build_vocab_from_iterator
-from models.utils.misc import count_file_lines
-from models.utils.misc import generate_relative_positions_matrix
+
 
 def getseq(tree):
     """get the depth-first traversal of an anytree ast.
@@ -76,82 +75,6 @@ def get_batch(samples,vocab,maxlen=None):
     padding_mask=padding_mask.bool()
     return inputbatch,targetbatch,padding_mask
 
-def get_batch_withlen(samples,vocab,maxlen=None,max_relpos=20,neg_relpos=False):
-    """generate a batch of input for basic transformer model."""
-    inputs,targets=list(zip(*samples))
-    inputbatch=[]
-    targetbatch=torch.tensor(targets,dtype=torch.long)
-    batch_maxlen=0
-    data_lengths=[]
-    astmasks=[] #ast parent-child mask
-    sibmasks=[] #sibling mask
-    ancmasks=[]
-    childRelPos=[] # parent-child relative position matrix
-    sibRelPos=[] # sibling relative position matrix
-    ancRelPos=[]
-    childdicts=[]
-    for data in inputs:
-        data,childdict,leaf2rootpaths=getseq(data)
-        childdicts.append(childdict)
-        if len(data)>maxlen:
-            data=data[:maxlen]
-        if len(data)>batch_maxlen:
-            batch_maxlen= len(data)
-        data_lengths.append(len(data))
-        inputtensor=torch.tensor([vocab[token] for token in data],dtype=torch.long)
-        inputbatch.append(inputtensor)
-    inputbatch=pad_sequence(inputbatch,batch_first=True,padding_value=vocab['<pad>'])
-    lengths=torch.tensor(data_lengths,dtype=torch.long)
-    for childdict in childdicts:
-        astmask=torch.zeros(batch_maxlen,batch_maxlen)
-        childpos=torch.zeros(batch_maxlen,batch_maxlen).long()
-        sibmask=torch.zeros(batch_maxlen,batch_maxlen)
-        sibpos=torch.zeros(batch_maxlen,batch_maxlen).long()
-        ancestormask=torch.zeros(batch_maxlen,batch_maxlen)
-        ancestorpos=torch.zeros(batch_maxlen,batch_maxlen).long()
-        for node,children in childdict.items():
-            if node<batch_maxlen:
-                astmask[node][node]=1 #allow self attention
-                for i in range(len(children)):
-                    if children[i]<batch_maxlen:
-                        astmask[node][children[i]]=1
-                        astmask[children[i]][node]=1
-                        childpos[node][children[i]]=i+1 #only from parent to children
-                        childpos[children[i]][node]=-(i+1) 
-                    #for j in range(len(children)):
-                        #if children[i]<batch_maxlen and children[j]<batch_maxlen:
-                            #sibmask[children[i]][children[j]]=1
-                            #sibpos[children[i]][children[j]]=i-j
-                if len(children)>0 and children[-1]>=batch_maxlen:
-                    children=[id for id in children if id<batch_maxlen]
-                if len(children)>0:
-                    sibmatrix=generate_relative_positions_matrix(length=len(children),max_relative_positions=max_relpos,use_neg_dist=neg_relpos)
-                    mesh = np.ix_(*[children,children]) #get the subtensor for siblings
-                    sibpos[mesh]=sibmatrix
-                    sibmask[mesh]=1
-        for path in leaf2rootpaths:
-            if path[-1]>=batch_maxlen:
-                path=[id for id in path if id<batch_maxlen]
-            ancestormatrix=generate_relative_positions_matrix(length=len(path),max_relative_positions=20,use_neg_dist=False)
-            mesh = np.ix_(*[path,path]) #get the subtensor for ancestors
-            ancestormask[mesh]=1
-            ancestorpos[mesh]=ancestormatrix
-        astmasks.append(astmask)
-        sibmasks.append(sibmask)
-        ancmasks.append(ancestormask)
-        childRelPos.append(childpos)
-        sibRelPos.append(sibpos)
-        ancRelPos.append(ancestorpos)
-    astmasks=torch.stack(astmasks,dim=0) # size: (batch_size, inputlen, inputlen)
-    sibmasks=torch.stack(sibmasks,dim=0) # size: (batch_size, inputlen, inputlen)
-    ancmasks=torch.stack(ancmasks,dim=0)
-    childRelPos=torch.stack(childRelPos,dim=0).long() # size: (batch_size, inputlen, inputlen)
-    sibRelPos=torch.stack(sibRelPos,dim=0).long() # size: (batch_size, inputlen, inputlen)
-    ancRelPos=torch.stack(ancRelPos,dim=0).long()
-    childRelPos=childRelPos.clamp(min=-max_relpos,max=max_relpos)
-    childRelPos+=max_relpos #use negative relpos
-    #sibRelPos=sibRelPos.clamp(min=-max_relpos,max=max_relpos)
-    return inputbatch,targetbatch,lengths,[astmasks,sibmasks,ancmasks],[childRelPos,sibRelPos,ancRelPos]
 
 class dataiterator(object):
     def __init__(self, data, batch_size):
