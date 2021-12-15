@@ -11,9 +11,7 @@ import dgl
 import dgl.function as fn
 from dgl.nn import GlobalAttentionPooling
 from propagate import prop_nodes_topdown
-from classifier import BasicTransformer, BasicTransformerEncoder
-from dgltest import Tree, BatchedTree
-from dgltest import make_random_tree
+#from classifier import BasicTransformer, BasicTransformerEncoder
 from copy import deepcopy
 import numpy as np
 
