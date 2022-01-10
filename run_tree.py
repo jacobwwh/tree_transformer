@@ -1,8 +1,7 @@
 #run experiments for poj and devign
 
-from preprocessc import createdata as createdata_pyc
-from preprocessc import read_data_from_disk
-#from preprocessc_ts import createdata as createdata_ts
+from preprocess_poj import createdata as createdata_pyc
+from preprocess_poj import read_data_from_disk
 import sys
 import random
 import pickle
