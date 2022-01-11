@@ -79,7 +79,6 @@ devset=create_loc_dataset(devset,vocab)
 testset=create_loc_dataset(testset,vocab)
 
 criterion = nn.NLLLoss()
-lr = 5.0 # learning rate
 lr=0.002
 optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
@@ -92,7 +91,6 @@ class NoamLR(_LRScheduler):
     def get_lr(self):
         last_epoch = max(1, self.last_epoch)
         scale = self.warmup_steps ** 0.5 * min(last_epoch ** (-0.5), last_epoch * self.warmup_steps ** (-1.5))
-        #scale=min(last_epoch/self.warmup_steps, 1)
         return [base_lr * scale for base_lr in self.base_lrs]
 
 warmup_steps=2000
@@ -127,3 +125,30 @@ for epoch in range(300):
         traincorrect+=(output.argmax(1) == targets).sum().item()
     print('avg loss:',totalloss/len(devset)*batch_size)
     print('train acc:',traincorrect/len(devset))
+    
+    model.eval()
+    with torch.no_grad():
+        devbar=tqdm(dataiterator(devset,batch_size=batch_size),disable=args.nobar)
+        devtotal=len(devset)
+        devcorrect=0
+        for batch in devbar:
+            inputbatch,targets,batch_maxlen,batch_numnodes=create_loc_batch(batch,device)
+            output = model(inputbatch,batch_maxlen,batch_numnodes)
+            devcorrect+=(output.argmax(1) == targets).sum().item()
+        print('devacc:',devcorrect/devtotal)
+        testbar=tqdm(dataiterator(testset,batch_size=batch_size), disable=args.nobar)
+        testtotal=len(testset)
+        testcorrect=0
+        for batch in testbar:
+            inputbatch,targets,batch_maxlen,batch_numnodes=create_loc_batch(batch,device)
+            output = model(inputbatch,batch_maxlen,batch_numnodes)
+            testcorrect+=(output.argmax(1) == targets).sum().item()
+        print('testacc:',testcorrect/testtotal)
+    if devcorrect/devtotal>=maxdevacc:
+        maxdevacc=devcorrect/devtotal
+        maxdevepoch=epoch
+        print('best epoch')
+    if epoch-maxdevepoch>10:
+        print('early stop')
+        print('best epoch:',maxdevepoch)
+        quit()
