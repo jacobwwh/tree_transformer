@@ -11,19 +11,28 @@ from collections import defaultdict,deque,Counter
 import pickle
 from torchtext.vocab import Vocab
 
-pythonpath='/var/data/wangwh/Project_CodeNet/Project_CodeNet/derived/benchmarks/Project_CodeNet_Python800_spts/'
-c1000path='/var/data/wangwh/Project_CodeNet/Project_CodeNet/derived/benchmarks/Project_CodeNet_C++1000_spts/'
-c1400path='/var/data/wangwh/Project_CodeNet/Project_CodeNet/derived/benchmarks/Project_CodeNet_C++1400_spts/'
-javapath='/var/data/wangwh/Project_CodeNet/Project_CodeNet/derived/benchmarks/Project_CodeNet_Java250_spts/'
+pythonpath='Project_CodeNet/derived/benchmarks/Project_CodeNet_Python800_spts/' #change to your own data path
+c1000path='Project_CodeNet/derived/benchmarks/Project_CodeNet_C++1000_spts/'
+c1400path='Project_CodeNet/Project_CodeNet/derived/benchmarks/Project_CodeNet_C++1400_spts/'
+javapath='Project_CodeNet/Project_CodeNet/derived/benchmarks/Project_CodeNet_Java250_spts/'
 
-datapath=javapath #select dataset
-edgepath=datapath+'edge.csv'
-labelpath=datapath+'graph-label.csv'
-nodepath=datapath+'node-feat.csv'
-edgenumpath=datapath+'num-edge-list.csv'
-nodenumpath=datapath+'num-node-list.csv'
 
-def get_spt_dataset(bidirection=False, virtual=False,edgetype=False,next_token=False):
+def get_spt_dataset(bidirection=False, virtual=False,edgetype=False,next_token=False,data='java250'):
+    assert data in ['java250','c++1000','c++1400','python800']
+    if data=='java250':
+        datapath=javapath
+    elif data=='c++1000':
+        datapath=c1000path
+    elif data=='c++1400':
+        datapath=c1400path
+    elif data=='python800':
+        datapath=pythonpath
+    edgepath=datapath+'edge.csv'
+    labelpath=datapath+'graph-label.csv'
+    nodepath=datapath+'node-feat.csv'
+    edgenumpath=datapath+'num-edge-list.csv'
+    nodenumpath=datapath+'num-node-list.csv'
+    
     numnodes=[]
     numedges=[]
     nodefeats=[]
