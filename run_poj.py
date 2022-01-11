@@ -38,8 +38,8 @@ devset=create_graph_dataset(devsamples,vocab)
 testset=create_graph_dataset(testsamples,vocab)
 
 ntokens = len(vocab.stoi) # the size of vocabulary
-emsize = 256 # embedding dimension
-nhid = 256 # the dimension of the feedforward network model in nn.TransformerEncoder
+emsize = 128 # embedding dimension
+nhid = emsize*4 # the dimension of the feedforward network model in nn.TransformerEncoder
 dk=32 #key dimension
 dv=32 #value dimension
 nlayers = 1 # the number of Transformer Encoder Layers
@@ -47,19 +47,11 @@ nhead = 4 # the number of heads in the multiheadattention models
 dropout = 0.2 # the dropout value
 
 print('embedsize:',emsize,'hidden:',nhid,'key:',dk,'value:',dv,'layers:',nlayers,'heads:',nhead)
-#model = TreeTransformerClassifier(nhead,emsize,dk,dv,nhid,nclasses,ntokens,dropout=dropout,num_stacks=nlayers).to(device)
 
-print(modelname)
-if modelname=='tree-transformer':
-    model = newclassifier(nhead,emsize,dk,dv,nhid,nclasses,ntokens,dropout=dropout,num_stacks=nlayers).to(device)
-    #model=acl2019classifier(nhead,emsize,dk,dv,nhid,nclasses,ntokens,dropout=dropout).to(device)
-elif modelname in ['gcn','gin','ggnn','ggnn-typed']:
-    model=GNN(emsize,nclasses,4,ntokens,dropout=dropout,model=modelname).to(device)
+model = newclassifier(nhead,emsize,dk,dv,nhid,nclasses,ntokens,dropout=dropout).to(device)
 
 criterion = nn.CrossEntropyLoss()
-lr = 5.0 # learning rate
 lr=0.002
-#optimizer = torch.optim.SGD(model.parameters(), lr=lr)
 optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 #scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 1.0, gamma=0.95)
 
