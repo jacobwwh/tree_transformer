@@ -191,4 +191,4 @@ if __name__ == '__main__':
     process('wrongoperator/train/',mode='train')
     process('wrongoperator/dev/',mode='dev')
     process('wrongoperator/test/',mode='test')
-    #getvocab('wrongoperator/train/train.jsonl')
+    getvocab('wrongoperator/train/train.jsonl')
