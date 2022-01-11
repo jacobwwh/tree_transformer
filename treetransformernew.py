@@ -239,17 +239,7 @@ class TreeTransformerCell_topdown(nn.Module):
             self.position_encoding=learned_posenc
         self.top_down_pos=False
         print('top down position',self.top_down_pos)'''
-        # W_q, W_k, W_v, W_o
-        self.k_linear = nn.Linear(dim_model, dim_model)
-        self.q_linear = nn.Linear(dim_model, dim_model)
-        self.v_linear = nn.Linear(dim_model, dim_model)
 
-        self.k_linear_p = nn.Linear(dim_model, dim_model)
-        self.q_linear_p = nn.Linear(dim_model, dim_model)
-        self.v_linear_p = nn.Linear(dim_model, dim_model)
-
-        self.sib_attention=MultiHeadAttention(self.d_k,self.d_k,self.dim_model,num_heads,dropout,top_down=True)
-        self.parent_attention=MultiHeadAttention(self.d_k,self.d_k,self.dim_model,num_heads,dropout,top_down=True)
         self.ff=PositionwiseFeedForward(dim_model,dim_ff,dropout=dropout)
         self.ff.w_1.weight.data.uniform_(-0.1, 0.1)
         self.ff.w_2.weight.data.uniform_(-0.1, 0.1)
@@ -280,7 +270,7 @@ class TreeTransformerCell_topdown(nn.Module):
         return {'h': h}
 
 class TreeTransformerClassifier(torch.nn.Module):
-    def __init__(self, num_heads, dim_model, d_k, d_v, dim_hidden, n_classes, vocab_size, dropout=0.2, num_stacks=1):
+    def __init__(self, num_heads, dim_model, dim_hidden, n_classes, vocab_size, dropout=0.2, num_stacks=1):
         super(TreeTransformerClassifier, self).__init__()
         self.num_heads=num_heads
         self.dim_model=dim_model
