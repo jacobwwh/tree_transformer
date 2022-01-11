@@ -1,5 +1,3 @@
-#run experiments for poj and devign
-
 from preprocess_poj import createdata as createdata_pyc
 from preprocess_poj import read_data_from_disk
 import sys
@@ -16,75 +14,28 @@ from torchtext.data.utils import get_tokenizer
 #from torchtext.vocab import build_vocab_from_iterator
 from graph_utils import create_graph_dataset, create_graph_batch
 from utils import dataiterator
-from treetransformer import TreeTransformerClassifier
 from treetransformernew import TreeTransformerClassifier as newclassifier
-from treetransformer_acl import TreeTransformerClassifier as acl2019classifier
-from model.gnn_baseline import GNN
-from tbcnn import TBCNNClassifier
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-dataset_name='devign_ast_camelsnake'
-print(dataset_name)
-if dataset_name=='poj':
-    #trainsamples,devsamples,testsamples=createdata_pyc(classes=2)
-    trainsamples=read_data_from_disk('poj104_pyc/traindata.jsonl')
-    devsamples=read_data_from_disk('poj104_pyc/devdata.jsonl')
-    testsamples=read_data_from_disk('poj104_pyc/testdata.jsonl')    
+#dataset_name='devign_ast_camelsnake'
+#print(dataset_name)
 
-    vocab=pickle.load(open('poj104_pyc/typevocab.pkl','rb'))
-    nclasses=104
-elif dataset_name=='poj712':
-    #trainsamples,devsamples,testsamples=createdata_pyc(classes=2)
-    trainsamples=read_data_from_disk('poj104_pyc/traindata_712.jsonl')
-    devsamples=read_data_from_disk('poj104_pyc/devdata_712.jsonl')
-    testsamples=read_data_from_disk('poj104_pyc/testdata_712.jsonl')    
+trainsamples=read_data_from_disk('poj104_pyc/traindata_712.jsonl')
+devsamples=read_data_from_disk('poj104_pyc/devdata_712.jsonl')
+testsamples=read_data_from_disk('poj104_pyc/testdata_712.jsonl')    
 
-    vocab=pickle.load(open('poj104_pyc/typevocab.pkl','rb'))
-    nclasses=104
-elif dataset_name=='poj_withid':
-    #trainsamples,devsamples,testsamples=createdata_pyc(classes=2)
-    trainsamples=read_data_from_disk('poj104_pyc/traindata_withid.jsonl')
-    devsamples=read_data_from_disk('poj104_pyc/devdata_withid.jsonl')
-    testsamples=read_data_from_disk('poj104_pyc/testdata_withid.jsonl')    
+vocab=pickle.load(open('poj104_pyc/typevocab.pkl','rb'))
+nclasses=104
 
-    vocab=pickle.load(open('poj104_pyc/tokenvocab.pkl','rb'))
-    nclasses=104
-elif dataset_name=='devign':
-    trainsamples=read_data_from_disk('devign/traindata.jsonl')
-    devsamples=read_data_from_disk('devign/devdata.jsonl')
-    testsamples=read_data_from_disk('devign/testdata.jsonl')    
-
-    vocab=pickle.load(open('devign/devignvocab_ast_min5.pkl','rb'))
-    nclasses=2
-elif dataset_name=='devign_cst':
-    trainsamples=read_data_from_disk('devign/traindata_cst.jsonl')
-    devsamples=read_data_from_disk('devign/devdata_cst.jsonl')
-    testsamples=read_data_from_disk('devign/testdata_cst.jsonl')    
-    vocab=pickle.load(open('devign/devignvocab_cst_min5.pkl','rb'))
-    nclasses=2
-elif dataset_name=='devign_ast_camelsnake':
-    trainsamples=read_data_from_disk('devign/traindata_camelsnake.jsonl')
-    devsamples=read_data_from_disk('devign/devdata_camelsnake.jsonl')
-    testsamples=read_data_from_disk('devign/testdata_camelsnake.jsonl')    
-    vocab=pickle.load(open('devign/devignvocab_ast_camelsnake_min5.pkl','rb'))
-    nclasses=2
 
 print(len(trainsamples),len(devsamples),len(testsamples))
 print(len(vocab))
-modelname='tree-transformer'
-if modelname in ['gcn', 'gin', 'ggnn']:
-    trainset=create_graph_dataset(trainsamples,vocab,bidirectional=True)
-    devset=create_graph_dataset(devsamples,vocab,bidirectional=True)
-    testset=create_graph_dataset(testsamples,vocab,bidirectional=True)
-elif modelname in ['ggnn-typed']:
-    trainset=create_graph_dataset(trainsamples,vocab,edgetypes=True)
-    devset=create_graph_dataset(devsamples,vocab,edgetypes=True)
-    testset=create_graph_dataset(testsamples,vocab,edgetypes=True)
-else:
-    trainset=create_graph_dataset(trainsamples,vocab)
-    devset=create_graph_dataset(devsamples,vocab)
-    testset=create_graph_dataset(testsamples,vocab)
+#modelname='tree-transformer'
+
+trainset=create_graph_dataset(trainsamples,vocab)
+devset=create_graph_dataset(devsamples,vocab)
+testset=create_graph_dataset(testsamples,vocab)
 
 ntokens = len(vocab.stoi) # the size of vocabulary
 emsize = 256 # embedding dimension
