@@ -25,7 +25,6 @@ def boolean_string(s):
     return s == 'True'
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset_name", type=str, default='java250, help="dataset name")
 parser.add_argument("--emsize", type=int, default=256, help="embedding dim")
 parser.add_argument("--num_heads", type=int, default=4, help="attention heads")
 parser.add_argument("--dropout", type=float, default=0.2)
