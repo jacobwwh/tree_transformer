@@ -26,25 +26,6 @@ class PositionwiseFeedForward(nn.Module):
     def forward(self, x):
         return self.w_2(self.dropout(F.gelu(self.w_1(x))))+x # residual connection?
 
-class PoswiseFF_Conv(nn.Module):
-    def __init__(self, d_model, d_ff, dropout=0.1):
-        super(PoswiseFF_Conv, self).__init__()
-        self.relu = nn.ReLU()
-        self.conv1 = nn.Conv1d(in_channels=d_model, out_channels=d_ff, kernel_size=1)
-        self.conv2 = nn.Conv1d(in_channels=d_ff, out_channels=d_model, kernel_size=1)
-        self.dropout = nn.Dropout(dropout)
-        self.layer_norm = LayerNorm(d_model)
-
-    def forward(self, inputs):
-        # inputs: [b_size x len_q x d_model]
-        residual = inputs
-        output = self.relu(self.conv1(inputs.transpose(1, 2)))
-
-        # outputs: [b_size x len_q x d_model]
-        output = self.conv2(output).transpose(1, 2)
-        output = self.dropout(output)
-
-        return self.layer_norm(residual + output)
 
 class FixedPositionalEncoding(nn.Module):
     def __init__(self, d_model, dropout=0.1, max_len=100000):
@@ -85,28 +66,18 @@ class LearnedPositionalEncoding(nn.Module):
 
 class TreeTransformerCell(nn.Module):
     """The tree transformer proposed by us."""
-    def __init__(self, num_heads, dim_model, dim_ff=128, dropout=0.2,attn_type='multihead',learned_posenc=None):
+    def __init__(self, num_heads, dim_model, dim_ff=128, dropout=0.2):
         super(TreeTransformerCell, self).__init__()
         self.dim_model = dim_model
         self.d_k = dim_model // num_heads
         self.h = num_heads
-        self.pos_enc='fixed'
-        print('position encoding:',self.pos_enc)
-        assert self.pos_enc in ['fixed','learned']
-        if self.pos_enc=='fixed':
-            self.position_encoding=FixedPositionalEncoding(dim_model,dropout=dropout)
-        elif self.pos_enc=='learned':               
-            self.position_encoding=learned_posenc
-        #self.position_encoding=LearnedPositionalEncoding(dim_model,dropout=dropout)
-        print('fixed position encoding: sibling positions')
-        self.bottom_up_pos=False
-        print('bottom up position',self.bottom_up_pos)
+        
         # W_q, W_k, W_v, W_o
-        self.k_linear = nn.Linear(dim_model, dim_model) #sibling attention, not used
+        self.k_linear = nn.Linear(dim_model, dim_model) #sibling attention
         self.q_linear = nn.Linear(dim_model, dim_model)
         self.v_linear = nn.Linear(dim_model, dim_model)
 
-        self.k_linear_p = nn.Linear(dim_model, dim_model)
+        self.k_linear_p = nn.Linear(dim_model, dim_model) #parental attention
         self.q_linear_p = nn.Linear(dim_model, dim_model)
         self.v_linear_p = nn.Linear(dim_model, dim_model)
 
@@ -119,11 +90,11 @@ class TreeTransformerCell(nn.Module):
         self.ff.w_1.weight.data.uniform_(-0.1, 0.1)
         self.ff.w_2.weight.data.uniform_(-0.1, 0.1)
        
-        self.attn_linear=nn.Linear(self.d_k*self.h, dim_model)       
+        #self.attn_linear=nn.Linear(self.d_k*self.h, dim_model)       
         self.dropout = nn.Dropout(dropout)
         self.layer_norm = LayerNorm(dim_model)
         
-        self.pool_linear=nn.Linear(dim_model,dim_model)
+        #self.pool_linear=nn.Linear(dim_model,dim_model)
 
     def message_func(self, edges):
         return {'h': edges.src['h'],'children_ids':edges.src['_ID']}
@@ -156,30 +127,21 @@ class TreeTransformerCell(nn.Module):
 
 class TreeTransformerCell_topdown(nn.Module):
     """The tree transformer proposed by us."""
-    def __init__(self, num_heads, dim_model, dim_ff=128, dropout=0.2,attn_type='multihead',learned_posenc=None):
+    def __init__(self, num_heads, dim_model, dim_ff=128, dropout=0.2):
         super(TreeTransformerCell_topdown, self).__init__()
         self.dim_model = dim_model
         self.d_k = dim_model // num_heads
         self.h = num_heads
-        '''self.pos_enc='fixed'
-        print('position encoding:',self.pos_enc)
-        assert self.pos_enc in ['fixed','learned']
-        if self.pos_enc=='fixed':
-            self.position_encoding=FixedPositionalEncoding(dim_model,dropout=dropout)
-        elif self.pos_enc=='learned':               
-            self.position_encoding=learned_posenc
-        self.top_down_pos=False
-        print('top down position',self.top_down_pos)'''
 
         self.ff=PositionwiseFeedForward(dim_model,dim_ff,dropout=dropout)
         self.ff.w_1.weight.data.uniform_(-0.1, 0.1)
         self.ff.w_2.weight.data.uniform_(-0.1, 0.1)
 
-        self.attn_linear=nn.Linear(self.d_k*self.h, dim_model)       
+        #self.attn_linear=nn.Linear(self.d_k*self.h, dim_model)       
         self.dropout = nn.Dropout(dropout)
         self.layer_norm = LayerNorm(dim_model)
         
-        self.pool_linear=nn.Linear(dim_model,dim_model)
+        #self.pool_linear=nn.Linear(dim_model,dim_model)
 
     def message_func(self, edges):
         return {'h': edges.src['h'],'children_ids':edges.src['_ID']}
