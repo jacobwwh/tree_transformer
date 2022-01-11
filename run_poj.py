@@ -1,4 +1,3 @@
-from preprocess_poj import createdata as createdata_pyc
 from preprocess_poj import read_data_from_disk
 import sys
 import random
@@ -8,13 +7,24 @@ from anytree import AnyNode, RenderTree
 from tqdm import tqdm
 import torch
 import torch.nn as nn
-from torch.nn.utils.rnn import pad_sequence
-import torchtext
-from torchtext.data.utils import get_tokenizer
-#from torchtext.vocab import build_vocab_from_iterator
 from graph_utils import create_graph_dataset, create_graph_batch
 from utils import dataiterator
 from treetransformernew import TreeTransformerClassifier as newclassifier
+
+def boolean_string(s):
+    if s not in {'False', 'True'}:
+        raise ValueError('Not a valid boolean string')
+    return s == 'True'
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--emsize", type=int, default=128, help="embedding dim")
+parser.add_argument("--num_heads", type=int, default=4, help="attention heads")
+parser.add_argument("--dropout", type=float, default=0.2)
+parser.add_argument("--lr", type=float, default=0.002, help="learning rate of adam")
+parser.add_argument("--batch_size", type=int, default=256, help="batch size")
+parser.add_argument("--maxepoch", type=int, default=500, help="max training epochs")
+parser.add_argument("--nobar", type=boolean_string, default=False, help="disable progress bar")
+args = parser.parse_args()
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -36,20 +46,18 @@ print(len(vocab))
 trainset=create_graph_dataset(trainsamples,vocab)
 devset=create_graph_dataset(devsamples,vocab)
 testset=create_graph_dataset(testsamples,vocab)
+vocabsize=len(vocab)
 
-ntokens = len(vocab.stoi) # the size of vocabulary
-emsize = 128 # embedding dimension
-nhid = emsize*4 # feedforward dimension
-nhead = 4 # the number of heads in the multiheadattention models
-dropout = 0.2 # the dropout value
+#emsize = 256 # embedding dimension
+nhid = args.emsize*4 # the dimension of feedforward layer
+#nhead = 4 # the number of heads in the multiheadattention models
+#dropout = 0.2 # the dropout value
 
-print('embedsize:',emsize,'hidden:',nhid,'key:',dk,'value:',dv,'layers:',nlayers,'heads:',nhead)
 
-model = newclassifier(nhead,emsize,nhid,nclasses,ntokens,dropout=dropout).to(device)
+model = newclassifier(nhead,emsize,nhid,nclasses,vocabsize,dropout=dropout).to(device)
 
 criterion = nn.CrossEntropyLoss()
-lr=0.002
-optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
 #scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 1.0, gamma=0.95)
 
 from torch.optim.lr_scheduler import _LRScheduler
@@ -66,18 +74,15 @@ class NoamLR(_LRScheduler):
 
 warmup_steps=2000
 scheduler=NoamLR(optimizer,warmup_steps=warmup_steps)
-batch_size=256
-print(batch_size,lr,warmup_steps)
 
-nobar=False
 maxdevacc=0
 maxdevepoch=0
-for epoch in range(500):
+for epoch in range(args.maxepoch):
     print('epoch:',epoch+1)
     sys.stdout.flush()
     model.train()
     random.shuffle(trainset)
-    trainbar=tqdm(dataiterator(trainset,batch_size=batch_size),disable=nobar)
+    trainbar=tqdm(dataiterator(trainset,batch_size=args.batch_size),disable=args.nobar)
     totalloss=0.0
     traincorrect=0
     for batch in trainbar:
@@ -97,7 +102,7 @@ for epoch in range(500):
     
     model.eval()
     with torch.no_grad():
-        devbar=tqdm(dataiterator(devset,batch_size=batch_size),disable=nobar)
+        devbar=tqdm(dataiterator(devset,batch_size=args.batch_size),disable=args.nobar)
         devtotal=len(devsamples)
         devcorrect=0
         for batch in devbar:
@@ -105,7 +110,8 @@ for epoch in range(500):
             output = model(inputbatch,root_ids=root_ids)
             devcorrect+=(output.argmax(1) == targets).sum().item()
         print('devacc:',devcorrect/devtotal)
-        testbar=tqdm(dataiterator(testset,batch_size=batch_size), disable=nobar)
+        
+        testbar=tqdm(dataiterator(testset,batch_size=args.batch_size), disable=args.nobar)
         testtotal=len(testsamples)
         testcorrect=0
         for batch in testbar:
@@ -113,6 +119,7 @@ for epoch in range(500):
             output = model(inputbatch,root_ids=root_ids)
             testcorrect+=(output.argmax(1) == targets).sum().item()
         print('testacc:',testcorrect/testtotal)
+    
     if devcorrect/devtotal>=maxdevacc:
         maxdevacc=devcorrect/devtotal
         maxdevepoch=epoch
