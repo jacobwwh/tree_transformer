@@ -39,16 +39,13 @@ testset=create_graph_dataset(testsamples,vocab)
 
 ntokens = len(vocab.stoi) # the size of vocabulary
 emsize = 128 # embedding dimension
-nhid = emsize*4 # the dimension of the feedforward network model in nn.TransformerEncoder
-dk=32 #key dimension
-dv=32 #value dimension
-nlayers = 1 # the number of Transformer Encoder Layers
+nhid = emsize*4 # feedforward dimension
 nhead = 4 # the number of heads in the multiheadattention models
 dropout = 0.2 # the dropout value
 
 print('embedsize:',emsize,'hidden:',nhid,'key:',dk,'value:',dv,'layers:',nlayers,'heads:',nhead)
 
-model = newclassifier(nhead,emsize,dk,dv,nhid,nclasses,ntokens,dropout=dropout).to(device)
+model = newclassifier(nhead,emsize,nhid,nclasses,ntokens,dropout=dropout).to(device)
 
 criterion = nn.CrossEntropyLoss()
 lr=0.002
