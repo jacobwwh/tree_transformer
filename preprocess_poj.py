@@ -102,7 +102,7 @@ def createdata(classes=104):
     exporter = JsonExporter(indent=2, sort_keys=True)
     wordcount=Counter()
     for i in range(1, classes+1):
-        dirname = '/var/data/wangwh/poj104/' + str(i) + '/'
+        dirname = 'poj104/' + str(i) + '/' #your path of raw data
         j=0
         for rt, dirs, files in os.walk(dirname):
             for file in files:
