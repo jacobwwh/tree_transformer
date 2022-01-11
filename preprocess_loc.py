@@ -18,13 +18,13 @@ from collections import defaultdict,Counter
 
 Language.build_library(
   # Store the library in the `build` directory
-  '/var/data/wangwh/sitter/build/my-languages.so',
+  'sitter/build/my-languages.so',
   # Include one or more languages
   [
-	'/var/data/wangwh/sitter/tree-sitter-python',
+	'sitter/tree-sitter-python',
   ]
 )
-PY_LANGUAGE = Language('/var/data/wangwh/sitter/build/my-languages.so', 'python')
+PY_LANGUAGE = Language('sitter/build/my-languages.so', 'python')
 ops=['==', '/', '+', 'or', '!=', '-', 'not', '%', '>', 'and', '*', '<', 'is', '<=', '>=', 'in']
 
 
