@@ -7,3 +7,7 @@ PyTorch>=1.5
 dgl==0.5
 
 torchtext==0.6
+
+pycparser
+
+tree-sitter (with Python grammar)
