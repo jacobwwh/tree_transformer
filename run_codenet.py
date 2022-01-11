@@ -2,6 +2,7 @@
 
 from preprocess_codenet import get_spt_dataset
 import sys
+import argparse
 import random
 import pickle
 import anytree
@@ -15,60 +16,42 @@ from torchtext.data.utils import get_tokenizer
 from graph_utils import create_graph_batch
 from utils import dataiterator
 from treetransformernew import TreeTransformer_typeandtoken
-from treetransformer_acl import TreeTransformer_typeandtoken as acl2019classifier
-from treelstm import TreeLSTM_typeandtoken
-from tbcnn import TBCNN_typeandtoken
-from model.gnn_baseline import GNN_typeandtoken
-from treecaps import TreeCaps_typeandtoken
-from model.radam import RAdam
+
+def boolean_string(s):
+    if s not in {'False', 'True'}:
+        raise ValueError('Not a valid boolean string')
+    return s == 'True'
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--dataset_name", type=str, default='java250, help="dataset name")
+parser.add_argument("--emsize", type=int, default=256, help="embedding dim")
+parser.add_argument("--num_heads", type=int, default=4, help="attention heads")
+parser.add_argument("--lr", type=float, default=0.002, help="learning rate of adam")
+parser.add_argument("--batch_size", type=int, default=256, help="batch size")
+parser.add_argument("--maxepoch", type=int, default=500, help="max training epochs")
+parser.add_argument("--nobar", type=boolean_string, default=False, help="disable progress bar")
+args = parser.parse_args()
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-dataset_name='java250'
-print(dataset_name)
-model_name='tree-transformer'
-print(model_name)
 
 num_classes={'java250':250,'python800':800,'c++1000':1000,'c++1400':1400}
-nclasses=num_classes[dataset_name]
+nclasses=num_classes[args.dataset_name]
 
-if model_name in ['gcn','gin','ggnn']:
-    trainset,devset,testset,token_vocabsize,type_vocabsize=get_spt_dataset(bidirection=True)
-elif model_name in ['ggnn-typed']:
-    trainset,devset,testset,token_vocabsize,type_vocabsize=get_spt_dataset(edgetype=True)
-else:
-    trainset,devset,testset,token_vocabsize,type_vocabsize=get_spt_dataset(bidirection=False)
+trainset,devset,testset,token_vocabsize,type_vocabsize=get_spt_dataset(bidirection=False)
 
 emsize = 256 # embedding dimension
-nhid = 256 # the dimension of the feedforward network model in nn.TransformerEncoder
-dk=32 #key dimension
-dv=32 #value dimension
-nlayers = 1 # the number of Transformer Encoder Layers
+nhid = emsize*4 # the dimension of the feedforward network model in nn.TransformerEncoder
 nhead = 4 # the number of heads in the multiheadattention models
 dropout = 0.2 # the dropout value
 
-print('embedsize:',emsize,'hidden:',nhid,'key:',dk,'value:',dv,'layers:',nlayers,'heads:',nhead)
+print('embedsize:',emsize,'hidden:',nhid,'heads:',nhead)
 
-if model_name=='tree-transformer':
-    model = TreeTransformer_typeandtoken(nhead,emsize,dk,dv,nhid,nclasses,token_vocabsize,type_vocabsize,dropout=dropout,top_down=True).to(device)
-    #model=acl2019classifier(nhead,emsize,dk,dv,nhid,nclasses,token_vocabsize,type_vocabsize,dropout=dropout).to(device)
-elif model_name=='tree-lstm':
-    model = TreeLSTM_typeandtoken(emsize,emsize,dropout,nclasses,token_vocabsize,type_vocabsize).to(device)
-elif model_name=='gcn':
-    model=GNN_typeandtoken(emsize,nclasses,5,token_vocabsize,type_vocabsize,dropout=dropout,model='gcn').to(device)
-elif model_name=='gin':
-    model=GNN_typeandtoken(emsize,nclasses,5,token_vocabsize,type_vocabsize,dropout=dropout,model='gin').to(device)
-elif model_name=='ggnn' or model_name=='ggnn-typed':
-    model=GNN_typeandtoken(emsize,nclasses,5,token_vocabsize,type_vocabsize,dropout=dropout,model='ggnn').to(device)
-elif model_name=='tbcnn':
-    model=TBCNN_typeandtoken(emsize,emsize,nclasses,token_vocabsize,type_vocabsize,num_layers=8).to(device)
-elif model_name=='treecaps':
-    model=TreeCaps_typeandtoken(emsize,emsize,nclasses,token_vocabsize,type_vocabsize,num_layers=8).to(device)
+model = TreeTransformer_typeandtoken(nhead,emsize,dk,dv,nhid,nclasses,token_vocabsize,type_vocabsize,dropout=dropout,top_down=False).to(device)
 
 criterion = nn.CrossEntropyLoss()
-lr = 5.0 # learning rate
-lr=0.002
-optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+
+optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
 
 from torch.optim.lr_scheduler import _LRScheduler
 class NoamLR(_LRScheduler):
@@ -84,8 +67,8 @@ class NoamLR(_LRScheduler):
 
 warmup_steps=2000
 scheduler=NoamLR(optimizer,warmup_steps=warmup_steps)
-batch_size=256
-print(batch_size,lr,warmup_steps)
+#batch_size=256
+#print(batch_size,lr,warmup_steps)
 
 
 def createdatabatch_spt(batch,device):
@@ -99,9 +82,7 @@ def createdatabatch_spt(batch,device):
     batched_graph=dgl.batch(graphs).to(device)
     return batched_graph,labels,root_ids
 
-maxepoch=500
-print('max epoch:',maxepoch)
-nobar=True
+print('max epoch:',args.maxepoch)
 maxdevacc=0
 maxdevepoch=0
 for epoch in range(maxepoch):
@@ -109,7 +90,7 @@ for epoch in range(maxepoch):
     sys.stdout.flush()
     model.train()
     random.shuffle(trainset)
-    trainbar=tqdm(dataiterator(trainset,batch_size=batch_size),disable=nobar)
+    trainbar=tqdm(dataiterator(trainset,batch_size=args.batch_size),disable=args.nobar)
     totalloss=0.0
     traincorrect=0
     for batch in trainbar:
@@ -129,7 +110,7 @@ for epoch in range(maxepoch):
     
     model.eval()
     with torch.no_grad():
-        devbar=tqdm(dataiterator(devset,batch_size=batch_size),disable=nobar)
+        devbar=tqdm(dataiterator(devset,batch_size=args.batch_size),disable=args.nobar)
         devtotal=len(devset)
         devcorrect=0
         for batch in devbar:
@@ -137,7 +118,7 @@ for epoch in range(maxepoch):
             output = model(inputbatch,root_ids=root_ids)
             devcorrect+=(output.argmax(1) == targets).sum().item()
         print('devacc:',devcorrect/devtotal)
-        testbar=tqdm(dataiterator(testset,batch_size=batch_size), disable=nobar)
+        testbar=tqdm(dataiterator(testset,batch_size=args.batch_size), disable=args.nobar)
         testtotal=len(testset)
         testcorrect=0
         for batch in testbar:
