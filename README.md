@@ -12,6 +12,14 @@ pycparser
 
 tree-sitter (with Python grammar)
 
+## Data preprocessing
+
+POJ: python preprocess_poj.py
+
+Wrong operator localization: python preprocess_loc.py
+
+CodeNet dataset do not require separate preprocessing.
+
 ## Running
 
 POJ: python run_poj.py
