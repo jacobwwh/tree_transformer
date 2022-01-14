@@ -12,6 +12,8 @@ pycparser
 
 tree-sitter (with Python grammar)
 
+anytree
+
 ## Data preprocessing
 
 POJ: python preprocess_poj.py
