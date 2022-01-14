@@ -48,13 +48,8 @@ devset=create_graph_dataset(devsamples,vocab)
 testset=create_graph_dataset(testsamples,vocab)
 vocabsize=len(vocab)
 
-#emsize = 256 # embedding dimension
 nhid = args.emsize*4 # the dimension of feedforward layer
-#nhead = 4 # the number of heads in the multiheadattention models
-#dropout = 0.2 # the dropout value
-
-
-model = newclassifier(nhead,emsize,nhid,nclasses,vocabsize,dropout=dropout).to(device)
+model = newclassifier(args.num_heads,args.emsize,nhid,nclasses,vocabsize,dropout=args.dropout).to(device)
 
 criterion = nn.CrossEntropyLoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
