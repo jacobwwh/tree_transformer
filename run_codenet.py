@@ -41,14 +41,7 @@ nclasses=num_classes[args.dataset_name]
 
 trainset,devset,testset,token_vocabsize,type_vocabsize=get_spt_dataset(bidirection=False)
 
-#emsize = 256 # embedding dimension
-nhid = args.emsize*4 # the dimension of feedforward layer
-#nhead = 4 # the number of heads in the multiheadattention models
-#dropout = 0.2 # the dropout value
-
-print('embedsize:',emsize,'hidden:',nhid,'heads:',nhead)
-
-#model = TreeTransformer_typeandtoken(nhead,emsize,dk,dv,nhid,nclasses,token_vocabsize,type_vocabsize,dropout=dropout,top_down=False).to(device)                   
+nhid = args.emsize*4 # the dimension of feedforward layer                 
 model = TreeTransformer_typeandtoken(args.num_heads,args.emsize,nhid,nclasses,token_vocabsize,type_vocabsize,dropout=args.dropout,top_down=True).to(device)
 
 criterion = nn.CrossEntropyLoss()
@@ -57,8 +50,6 @@ optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
 
 warmup_steps=2000
 scheduler=NoamLR(optimizer,warmup_steps=warmup_steps)
-#batch_size=256
-#print(batch_size,lr,warmup_steps)
 
 
 def createdatabatch_spt(batch,device):
