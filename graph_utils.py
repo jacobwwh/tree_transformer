@@ -18,23 +18,16 @@ def tree2dgltree(tree,vocab,bidirectional=False):
     src_ids=[]
     tgt_ids=[]
     node_types=[]
-    dfs_ids=[]
-    sib_ids=[]
-    dfs_ids=[]
     def traverse(node):
         node_types.append(vocab[node.name])
-        #dfs_ids.append(node.index)
         for child in node.children:
             src_ids.append(child.index)
             tgt_ids.append(node.index)
             traverse(child)
     traverse(tree)
-    dfs_ids=list(range(len(node_types)))
     node_types=torch.tensor(node_types)
-    dfs_ids=torch.tensor(dfs_ids)
     graph=dgl.graph((src_ids,tgt_ids))
     graph.ndata['type']=node_types
-    graph.ndata['dfs_id']=dfs_ids
     if bidirectional==True:
         graph=dgl.add_reverse_edges(graph)
     return graph
@@ -182,41 +175,6 @@ def create_loc_dataset(samples,vocab,bidirectional=False):
         dataset.append(astgraph)
     return dataset
 
-def create_cs_dataset(samples,vocab,maxlen=512): #not used
-    print('generating dataset...')
-    dataset=[]
-    
-    for sample in samples:
-        if len(sample)==4:
-            idx,url,tree,nl=sample
-        else:
-            tree,nl=sample
-        nl=nl[:maxlen]
-        astgraph=tree2dgltree(tree,vocab)
-
-        if len(sample)==4:
-            data=[idx,url,astgraph,nl]
-        else:
-            data=[astgraph,nl]
-        dataset.append(data)
-    return dataset
-
-def create_cs_dataset_seq(samples,vocab,maxlen=512):
-    print('generating dataset...')
-    dataset=[]   
-    for sample in samples:
-        if len(sample)==4:
-            idx,url,code,nl=sample
-        else:
-            code,nl=sample
-        code=code[:maxlen]
-        nl=nl[:maxlen]
-        if len(sample)==4:
-            data=[idx,url,code,nl]
-        else:
-            data=[code,nl]
-        dataset.append(data)
-    return dataset
 
 def create_graph_batch(batch,device):
     graphs,labels=list(zip(*batch))
