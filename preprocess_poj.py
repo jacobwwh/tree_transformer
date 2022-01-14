@@ -115,9 +115,7 @@ def createdata(classes=104):
                 for line in code:
                     newcode = newcode + line
                 code=newcode
-                #print(newcode)
                 ast=parser.parse(code)
-                #print(filename)
                 #traverse and write to anytree
                 anyast=converttoany(ast,vocabcounter=wordcount,keep_ids=False)
                 #print(RenderTree(anyast))
@@ -138,9 +136,9 @@ def createdata(classes=104):
     print(len(trainset),len(validset),len(testset))
     node_vocab=Vocab(wordcount)
     print(len(node_vocab))
-    #vocabfile = open('poj104_pyc/tokenvocab.pkl', 'wb')
-    #pickle.dump(node_vocab, vocabfile)
-    #vocabfile.close()
+    vocabfile = open('poj104_pyc/tokenvocab.pkl', 'wb')
+    pickle.dump(node_vocab, vocabfile)
+    vocabfile.close()
     return trainset,validset,testset
 
 def read_data_from_disk(path):
