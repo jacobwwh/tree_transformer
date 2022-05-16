@@ -112,7 +112,7 @@ class TreeTransformerCell(nn.Module):
         new_k=self.k_linear_p(x) #parent_children attention
         new_v=self.v_linear_p(x)
         parent_q=self.q_linear_p(nodes.data['h'].unsqueeze(1))
-        residual_parent=parent_q.squeeze(1)
+        residual_parent=nodes.data['h']
         parent_context, attn=self.parent_attention(parent_q,new_k,new_v) # context: [b_size x len_q(1) x dim] attn: [b_size x n_heads x len_q x len_v]
         parent_context=parent_context.squeeze(1)
         parent_context=self.layer_norm(parent_context+residual_parent)
