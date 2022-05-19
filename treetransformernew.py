@@ -262,7 +262,7 @@ class TreeTransformer_localize(torch.nn.Module):
         self.encoder=TreeTransformerEncoder(num_heads, dim_model, dim_hidden, vocab_size, dropout)
         self.cls = nn.Linear(dim_model, 1)
 
-    def forward(self, batch,batch_maxlen,batch_numnodes):
+    def forward(self, batch,batch_maxlen,batch_numnodes,repair=False):
         batch=self.encoder(batch)
         batch.ndata['prob']=self.cls(batch.ndata['h']).squeeze(1)
         batch.ndata['prob'] = batch.ndata['prob'].masked_fill(batch.ndata['is_op'] == False, -1e9) #mask non-operator
@@ -271,7 +271,14 @@ class TreeTransformer_localize(torch.nn.Module):
         graph_probs=list(probs.split(batch_numnodes))
         graph_probs=pad_sequence(graph_probs,batch_first=True,padding_value=-1e9)
         graph_probs=F.log_softmax(graph_probs,dim=1)
-        return graph_probs
+        
+        if repair==False:
+            return graph_probs
+        else:
+            buggy_locations=torch.nonzero(batch.ndata['label']==1,as_tuple=True)
+            repair_pred=batch.ndata['h'][buggy_locations]
+            repair_pred=self.repair_cls(repair_pred)
+            return graph_probs,repair_pred
 
 
 class TreeTransformer_typeandtoken(torch.nn.Module):
