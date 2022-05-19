@@ -198,7 +198,6 @@ def getvocab(path):
 
 
 if __name__ == '__main__':
-    file_dir='wrongoperator/train/'
     process('wrongoperator/train/',mode='train')
     process('wrongoperator/dev/',mode='dev')
     process('wrongoperator/test/',mode='test')
