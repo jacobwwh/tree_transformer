@@ -166,13 +166,17 @@ def create_graph_dataset(samples,vocab,maxlen=512,bidirectional=False,edgetypes=
         dataset.append(data)
     return dataset
 
-def create_loc_dataset(samples,vocab,bidirectional=False):
+def create_loc_dataset(samples,vocab,bidirectional=False,withlabel=True):
     print('generating dataset...')
     dataset=[]
     for sample in samples:
         tree=sample['tree']
         astgraph=tree2dgltree_loc(tree,vocab,bidirectional=bidirectional)
-        dataset.append(astgraph)
+        if withlabel:
+            label=sample['label']
+            dataset.append([astgraph,label])
+        else:
+            dataset.append(astgraph)
     return dataset
 
 
@@ -200,3 +204,20 @@ def create_loc_batch(batch,device):
     labels=torch.tensor(labels,dtype=torch.long).to(device)
     batched_graph=dgl.batch(batch).to(device)
     return batched_graph,labels,batch_maxlen,graph_lengths
+
+
+def create_loc_repair_batch(batch,device):
+    graph_lengths=[]
+    localize_labels=[]
+    batch_maxlen=0
+    graphs,repair_labels=list(zip(*batch))
+    for graph in graphs:
+        numnodes=graph.num_nodes()
+        graph_lengths.append(numnodes)
+        batch_maxlen=max(batch_maxlen,numnodes)
+        location=torch.nonzero(graph.ndata['label']==1,as_tuple=True)[0].item()
+        localize_labels.append(location)
+    localize_labels=torch.tensor(localize_labels,dtype=torch.long).to(device)
+    repair_labels=torch.tensor(repair_labels,dtype=torch.long).to(device)
+    batched_graph=dgl.batch(graphs).to(device)
+    return batched_graph,localize_labels,batch_maxlen,graph_lengths,repair_labels
