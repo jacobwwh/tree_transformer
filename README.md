@@ -18,7 +18,7 @@ anytree
 
 POJ: python preprocess_poj.py
 
-Wrong operator localization: python preprocess_loc.py
+Wrong operator localization and repair: python preprocess_loc.py
 
 CodeNet dataset do not require separate preprocessing.
 
@@ -28,5 +28,5 @@ POJ: python run_poj.py
 
 CodeNet: python run_codenet.py
 
-Wrong operator localization: python run_loc.py
+Wrong operator localization and repair: python run_loc.py
 
