@@ -157,9 +157,20 @@ def process(dir,mode='train'):
             for instance in tqdm(instances):
                 ast = pythonTree(instance[0], instance[1], parser)
                 bugnodes = search.findall(ast.op_tree, lambda node: node.label == 1)
-                if len(bugnodes) == 1:
+		opnodes = search.findall(ast.op_tree, lambda node: node.is_operator == True)
+                if len(bugnodes) == 1 and len(opnodes)>1:
                     assert bugnodes[0].is_operator == True
-                    new_instances.append({'buggy_function': ast.op_blob, 'tree': exporter.export(ast.op_tree)})
+		    
+		    root = ast.op_tree
+                    overlength = False
+                    cursor = root
+                    while cursor.children:
+                        cursor = cursor.children[-1]
+                        if cursor.index > 2000:
+                            overlength = True
+                            break
+                    if overlength == False:
+		    	new_instances.append({'buggy_function': ast.op_blob, 'tree': exporter.export(ast.op_tree), 'correct_op':ast.ori_op}})
             save_jsonl(file_path + '.jsonl', new_instances)
 
 def getvocab(path):
