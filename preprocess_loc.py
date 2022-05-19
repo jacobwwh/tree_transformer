@@ -1,4 +1,4 @@
-#create wrong operator localization data
+#create wrong operator localization and repair data
 
 from tree_sitter import Language, Parser
 import json
