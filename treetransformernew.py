@@ -10,7 +10,6 @@ from torch.nn.utils.rnn import pad_sequence
 import dgl
 import dgl.function as fn
 from dgl.nn import GlobalAttentionPooling
-from propagate import prop_nodes_topdown
 from modules.attention import MultiHeadAttention_TUPE
 from copy import deepcopy
 import numpy as np
