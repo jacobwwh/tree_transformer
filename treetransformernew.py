@@ -16,6 +16,15 @@ from copy import deepcopy
 import numpy as np
 
 
+def reverse_batch(batched_graph):
+    batch_numnodes=batched_graph.batch_num_nodes()
+    batch_numedges=batched_graph.batch_num_edges()
+    batched_graph=dgl.reverse(batched_graph)
+    batched_graph.set_batch_num_nodes(batch_numnodes)
+    batched_graph.set_batch_num_edges(batch_numedges)
+    return batched_graph
+
+
 class PositionwiseFeedForward(nn.Module):
     def __init__(self, dim_model, dim_ff, dropout=0.1):
         super(PositionwiseFeedForward, self).__init__()
@@ -66,11 +75,15 @@ class LearnedPositionalEncoding(nn.Module):
 
 class TreeTransformerCell(nn.Module):
     """The tree transformer proposed by us."""
-    def __init__(self, num_heads, dim_model, dim_ff=128, dropout=0.2):
+    def __init__(self, num_heads, dim_model, dim_ff=128, dropout=0.2, pos_enc='fixed'):
         super(TreeTransformerCell, self).__init__()
         self.dim_model = dim_model
         self.d_k = dim_model // num_heads
         self.h = num_heads
+        self.pos_enc=pos_enc
+        assert self.pos_enc in ['fixed','tupe']
+        if self.pos_enc=='fixed':
+            self.position_encoding=FixedPositionalEncoding(dim_model,dropout=dropout)
         
         # W_q, W_k, W_v, W_o
         self.k_linear = nn.Linear(dim_model, dim_model) #sibling attention
@@ -81,11 +94,12 @@ class TreeTransformerCell(nn.Module):
         self.q_linear_p = nn.Linear(dim_model, dim_model)
         self.v_linear_p = nn.Linear(dim_model, dim_model)
 
-
-        #self.sib_attention=MultiHeadAttention(self.d_k,self.d_k,self.dim_model,num_heads,dropout)
-        self.sib_attention_tupe=MultiHeadAttention_TUPE(self.d_k,self.d_k,self.dim_model,num_heads,dropout,tupe=True,pe_mode='learned')
-        #self.parent_attention=MultiHeadAttention(self.d_k,self.d_k,self.dim_model,num_heads,dropout)
-        self.parent_attention=MultiHeadAttention_TUPE(self.d_k, self.d_k, self.dim_model, num_heads, dropout,tupe=False)
+        if self.pos_enc=='fixed':
+            self.sib_attention=MultiHeadAttention(self.d_k,self.d_k,self.dim_model,num_heads,dropout)    
+            self.parent_attention=MultiHeadAttention(self.d_k,self.d_k,self.dim_model,num_heads,dropout)
+        elif self.pos_enc=='tupe':
+            self.sib_attention=MultiHeadAttention_TUPE(self.d_k,self.d_k,self.dim_model,num_heads,dropout,tupe=True,pe_mode='learned')
+            self.parent_attention=MultiHeadAttention_TUPE(self.d_k, self.d_k, self.dim_model, num_heads, dropout,tupe=False)
         self.ff=PositionwiseFeedForward(dim_model,dim_ff,dropout=dropout)
         self.ff.w_1.weight.data.uniform_(-0.1, 0.1)
         self.ff.w_2.weight.data.uniform_(-0.1, 0.1)
@@ -102,11 +116,15 @@ class TreeTransformerCell(nn.Module):
     def reduce_func(self, nodes):
         x=nodes.mailbox['h']
         
+        if self.pos_enc=='fixed':
+            assert self.position_encoding is not None
+            x=self.position_encoding(x) #sibling position encoding (do not use with tupe)
+        
         q=self.q_linear(x) #sibling self_attention, can be removed
         k=self.k_linear(x)
         v=self.v_linear(x)
         residual=x       
-        x,attn=self.sib_attention_tupe(q,k,v) #absolute position encoding with tupe        
+        x,attn=self.sib_attention(q,k,v) #vanilla attention or tupe     
         x=self.layer_norm(x+residual)
 
         new_k=self.k_linear_p(x) #parent_children attention
@@ -145,18 +163,16 @@ class TreeTransformerCell_topdown(nn.Module):
 
     def message_func(self, edges):
         return {'h': edges.src['h'],'children_ids':edges.src['_ID']}
-
-    def reduce_func(self, graph, nodes):
-        x=nodes.mailbox['h']
-        child_num=x.size()[1]
-        residual_children=x        
-        children_context=nodes.data['h'].unsqueeze(1).expand(-1,child_num,-1)
-        children_context=self.layer_norm(children_context+residual_children)
+    
+    def reduce_topdown(self,nodes):
+        parent_td_states=nodes.mailbox['h']
+        children_bu_states=nodes.data['h']
+        children_context=self.layer_norm(parent_td_states.squeeze()+children_bu_states) #add residual (children_bu_states)
         
         h=self.ff(children_context)
         h=self.layer_norm(h)
-        graph.ndata['h'][nodes.mailbox['children_ids']]=h
-        return {'h': nodes.data['h']}
+
+        return {'h': h}
 
     def apply_node_func(self, nodes):
         h=nodes.data['h']      
@@ -204,10 +220,12 @@ class TreeTransformerClassifier(torch.nn.Module):
                                 reduce_func=self.cell.reduce_func,
                                 apply_node_func=self.cell.apply_node_func)
             if self.top_down:
-                prop_nodes_topdown(batch,
-                                    message_func=self.cell_topdown.message_func,
-                                    reduce_func=self.cell_topdown.reduce_func,
-                                    apply_node_func=self.cell_topdown.apply_node_func)
+                batch=reverse_batch(batch) #convert input trees to top-down
+                dgl.prop_nodes_topo(batch,
+                                message_func=self.cell_topdown.message_func,
+                                reduce_func=self.cell_topdown.reduce_topdown,
+                                apply_node_func=self.cell_topdown.apply_node_func)
+                batch=reverse_batch(batch)
        
         batch_pred=self.pooling(batch,batch.ndata['h'])
         batch_pred=self.classifier(batch_pred)
@@ -250,10 +268,12 @@ class TreeTransformerEncoder(torch.nn.Module):
                             reduce_func=self.cell.reduce_func,
                             apply_node_func=self.cell.apply_node_func)
         if self.top_down:
-            prop_nodes_topdown(batch,
-                                message_func=self.cell_topdown.message_func,
-                                reduce_func=self.cell_topdown.reduce_func,
-                                apply_node_func=self.cell_topdown.apply_node_func)
+            batch=reverse_batch(batch) #convert input trees to top-down
+            dgl.prop_nodes_topo(batch,
+                            message_func=self.cell_topdown.message_func,
+                            reduce_func=self.cell_topdown.reduce_topdown,
+                            apply_node_func=self.cell_topdown.apply_node_func)
+            batch=reverse_batch(batch)
         return batch
 
 class TreeTransformer_localize(torch.nn.Module):
@@ -327,10 +347,12 @@ class TreeTransformer_typeandtoken(torch.nn.Module):
                                 reduce_func=self.cell.reduce_func,
                                 apply_node_func=self.cell.apply_node_func)
             if self.top_down:
-                prop_nodes_topdown(batch,
-                                    message_func=self.cell_topdown.message_func,
-                                    reduce_func=self.cell_topdown.reduce_func,
-                                    apply_node_func=self.cell_topdown.apply_node_func)
+                batch=reverse_batch(batch) #convert input trees to top-down
+                dgl.prop_nodes_topo(batch,
+                                message_func=self.cell_topdown.message_func,
+                                reduce_func=self.cell_topdown.reduce_topdown,
+                                apply_node_func=self.cell_topdown.apply_node_func)
+                batch=reverse_batch(batch)
         batch_pred=self.pooling(batch,batch.ndata['h'])
         batch_pred=self.classifier(batch_pred)
         return batch_pred
