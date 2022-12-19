@@ -1,5 +1,7 @@
 # Tree-Transformer
 
+Code for paper "Learning Program Representations with a Tree-Structured Transformer" (accepted by SANER 2023).
+
 ## Requirements
 
 PyTorch>=1.5
